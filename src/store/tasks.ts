@@ -92,7 +92,6 @@ export async function createTask(opts: CreateTaskOptions): Promise<string> {
     projectId,
     gitIsolation,
     baseBranch,
-    symlinkDirs = [],
     initialPrompt,
     githubUrl,
     skipPermissions,
@@ -102,6 +101,16 @@ export async function createTask(opts: CreateTaskOptions): Promise<string> {
   const projectRoot = getProjectPath(projectId);
   if (!projectRoot) throw new Error('Project not found');
   if (isProjectMissing(projectId)) throw new Error('Project folder not found');
+
+  // Auto-detect symlink dirs if not provided
+  let symlinkDirs = opts.symlinkDirs ?? [];
+  if (symlinkDirs.length === 0) {
+    try {
+      symlinkDirs = await invoke<string[]>(IPC.GetGitignoredDirs, { projectRoot });
+    } catch {
+      // Fall back to empty — worktree will still work, just without symlinks
+    }
+  }
 
   const branchPrefix = opts.branchPrefixOverride ?? getProjectBranchPrefix(projectId);
   const result = await invoke<CreateTaskResult>(IPC.CreateTask, {
